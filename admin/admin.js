@@ -481,7 +481,6 @@ bot.action("eng_yaxshi_muxbir", async (ctx) => {
 async function getTop3MuxbirText(groupedLavhalar, Muxbir) {
     const users = [];
 
-    // 1. Har bir user bo‘yicha ball va lavha sonini hisoblash
     for (const userId in groupedLavhalar) {
         const lavhalar = groupedLavhalar[userId];
 
@@ -497,12 +496,10 @@ async function getTop3MuxbirText(groupedLavhalar, Muxbir) {
         });
     }
 
-    // 2. Ball bo‘yicha TOP-3
     const top3 = users
         .sort((a, b) => b.totalBall - a.totalBall)
         .slice(0, 3);
 
-    // 3. Text yasash (DB dan full_name olib)
     let text = "";
 
     for (let i = 0; i < top3.length; i++) {
@@ -546,7 +543,6 @@ bot.action(/hisobot_(.+)/, async (ctx) => {
                     where: {
                         hudud: { [Op.ne]: "markaz" }
                     },
-                    limit: 10
                 });
 
         if (muxbirlar.length == 0) return ctx.reply("Xududda muxbirlar topilmadi")

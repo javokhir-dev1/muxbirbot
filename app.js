@@ -38,8 +38,7 @@ Bu bot orqali:
 bot.hears("🏆 Top Muxbir Markaz", async (ctx) => {
     try {
         const muxbirlar = await Muxbir.findAll({
-            where: { hudud: "markaz" },
-            limit: 10
+            where: { hudud: "markaz" }
         })
         const arr = []
         if (muxbirlar.length == 0) return ctx.reply("Muxbirlar topilmadi")
@@ -68,8 +67,7 @@ bot.hears("🏆 Top Muxbir Markaz", async (ctx) => {
 bot.hears("🔥 Markaz Top Lavha", async (ctx) => {
     try {
         const muxbirlar = await Muxbir.findAll({
-            where: { hudud: "markaz" },
-            limit: 10
+            where: { hudud: "markaz" }
         })
         const arr = []
         if (muxbirlar.length == 0) return ctx.reply("Muxbirlar topilmadi")
@@ -106,8 +104,7 @@ bot.hears("🏙 Top Muxbir Hudud", async (ctx) => {
         const muxbirlar = await Muxbir.findAll({
             where: {
                 hudud: { [Op.ne]: "markaz" }
-            },
-            limit: 10
+            }
         });
         if (muxbirlar.length == 0) return ctx.reply("Muxbirlar topilmadi")
         const arr = []
@@ -137,8 +134,7 @@ bot.hears("🎉 Top Lavha Hudud", async (ctx) => {
         const muxbirlar = await Muxbir.findAll({
             where: {
                 hudud: { [Op.ne]: "markaz" }
-            },
-            limit: 10
+            }
         });
         const arr = []
         if (muxbirlar.length == 0) return ctx.reply("Muxbirlar topilmadi")
