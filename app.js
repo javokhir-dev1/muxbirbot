@@ -27,13 +27,23 @@ Bu bot orqali:
             Markup.keyboard([
                 ["🏆 Top Muxbir Markaz", "🔥 Markaz Top Lavha"],
                 ["🏙 Top Muxbir Hudud", "🎉 Top Lavha Hudud"],
-                ["📊 Shaxsiy natija"],
+                ["📊 Shaxsiy natija", "Lavha kesish"],
             ]).resize())
     } catch (err) {
         console.log(err)
         ctx.reply("Xatolik yuz berdi")
     }
 })
+
+function chunkArray(arr, size = 5) {
+    const result = []
+
+    for (let i = 0; i < arr.length; i += size) {
+        result.push(arr.slice(i, i + size))
+    }
+
+    return result
+}
 
 bot.hears("🏆 Top Muxbir Markaz", async (ctx) => {
     try {
@@ -49,7 +59,6 @@ bot.hears("🏆 Top Muxbir Markaz", async (ctx) => {
             arr.push({ name: muxbirlar[i].full_name, score: lavhalar.length })
         }
         arr.sort((a, b) => b.score - a.score);
-
 
         let text = ""
 
@@ -84,7 +93,6 @@ bot.hears("🔥 Markaz Top Lavha", async (ctx) => {
             arr.push({ name: muxbirlar[i].full_name, score })
         }
         arr.sort((a, b) => b.score - a.score);
-
 
         let text = ""
 
@@ -229,5 +237,63 @@ bot.action(/gethisobotby_(.+)/, async (ctx) => {
     } catch (err) {
         console.log(err)
         ctx.reply("Xatolik yuz berdi")
+    }
+})
+
+bot.hears("Lavha kesish", async (ctx) => {
+    try {
+        ctx.reply("Oyni tanlang 👇", Markup.inlineKeyboard([
+            [Markup.button.callback("yanvar", "lavha_kesish_by_yanvar"), Markup.button.callback("fevral", "lavha_kesish_by_fevral")],
+            [Markup.button.callback("mart", "lavha_kesish_by_mart"), Markup.button.callback("aprel", "lavha_kesish_by_aprel")],
+            [Markup.button.callback("may", "lavha_kesish_by_may"), Markup.button.callback("iyun", "lavha_kesish_by_iyun")],
+            [Markup.button.callback("iyul", "lavha_kesish_by_iyul"), Markup.button.callback("avgust", "lavha_kesish_by_avgust")],
+            [Markup.button.callback("sentabr", "lavha_kesish_by_sentabr"), Markup.button.callback("oktabr", "lavha_kesish_by_oktabr")],
+            [Markup.button.callback("noyabr", "lavha_kesish_by_noyabr"), Markup.button.callback("dekabr", "lavha_kesish_by_dekabr")],
+        ]))
+    } catch (err) {
+        console.log(err)
+        ctx.reply("Xatolik yuz berdi")
+    }
+})
+
+
+
+bot.action(/lavha_kesish_by_(.+)/, async (ctx) => {
+    try {
+        const oy = ctx.match[1]
+        const muxbir = await Muxbir.findOne({
+            where: {
+                telegram: { [Op.in]: [String(ctx.from.id), String(ctx.from.username)] }
+            }, raw: true
+        })
+
+        if (!muxbir) {
+            return ctx.reply("Siz bazada mavjud emassiz!")
+        }
+        let text = "<b>Sanani tanlang 👇\n\n</b>"
+        const buttons = []
+        const lavhalar = await Lavha.findAll({ where: { user_id: String(muxbir.id)} })
+        if (!lavhalar) {
+            return ctx.reply("Lavhalar mavjud emas")
+        }
+        for (let i = 0; i < lavhalar.length; i++) {
+            if (isSameMonthByName(lavhalar[i].sana, oy)) {
+                text += `<b>${i + 1}. ${lavhalar[i].sana}</b>\n`
+                buttons.push(Markup.button.callback(i+1, `lavhani_olish_${lavhalar[i].id}`))
+            }
+        }
+        await ctx.replyWithHTML(text, Markup.inlineKeyboard(chunkArray(buttons)))
+
+    } catch (err) {
+        console.log(err)
+        ctx.reply("Xatolik yuz berdi")
+    }
+})
+
+bot.action(/lavhani_olish_(.+)/, async (ctx) => {
+    try {
+        
+    } catch(err) {
+        console.log(err)
     }
 })

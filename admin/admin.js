@@ -35,7 +35,6 @@ const regionsInlineKeyboard = Markup.inlineKeyboard(
         ],
         [
             Markup.button.callback("Qoraqalpog'iston", "hudud_qoraqalpogiston"),
-            Markup.button.callback("Toshkent shahri", "hudud_toshkent_city"),
         ],
     ]
 );
@@ -64,7 +63,6 @@ const regionsInlineKeyboardForHisobots = Markup.inlineKeyboard(
         ],
         [
             Markup.button.callback("Qoraqalpog'iston", "hisobot_qoraqalpogiston"),
-            Markup.button.callback("Toshkent shahri", "hisobot_toshkent_city"),
         ],
         [
             Markup.button.callback("Barchasi", "hisobot_barchasi"),
@@ -87,6 +85,16 @@ function getCurrentDate() {
     const year = now.getFullYear();
 
     return `${day}-${month}-${year}`;
+}
+
+function chunkArray(arr, size = 5) {
+    const result = []
+
+    for (let i = 0; i < arr.length; i += size) {
+        result.push(arr.slice(i, i + size))
+    }
+
+    return result
 }
 
 function getCalendarKeyboard(year, month) {
@@ -292,15 +300,43 @@ bot.action(/type_lavha_(.+)/, async (ctx) => {
 
         if (muxbirs.length == 0) return ctx.reply("Hozircha muxbirlar mavjud emas!")
 
+        let textMarkaz = []
+        let textHudud = []
+
         await ctx.reply("Muxbirni tanlang 👇")
         for (let i = 0; i < muxbirs.length; i++) {
-            ctx.replyWithHTML(
-                `<b>Ismi: </b>${muxbirs[i].full_name}\n<b>Telegram (username yoki ID): </b> ${muxbirs[i].telegram}\n<b>Hudud: </b>${capitalize(muxbirs[i].hudud)}`,
-                Markup.inlineKeyboard([
-                    [Markup.button.callback("✅ Muxbirni tanlash", `get_muxbir_to_lavha_${muxbirs[i].id}`)]
-                ])
-            )
+            if (muxbirs[i].hudud == "markaz") {
+                textMarkaz.push(muxbirs[i])
+            } else {
+                textHudud.push(muxbirs[i])
+            }
+            // ctx.replyWithHTML(
+            //     `<b>Ismi: </b>${muxbirs[i].full_name}\n<b>Telegram (username yoki ID): </b> ${muxbirs[i].telegram}\n<b>Hudud: </b>${capitalize(muxbirs[i].hudud)}`,
+            //     Markup.inlineKeyboard([
+            //         [Markup.button.callback("✅ Muxbirni tanlash", `get_muxbir_to_lavha_${muxbirs[i].id}`)]
+            //     ])
+            // )
         }
+
+        let text = ""
+        const buttons = []
+
+
+        const result = textMarkaz.concat([{ full_name: "-" }], textHudud)
+        let id = 0
+        console.log(result)
+        for (let i = 0; i < result.length; i++) {
+            if (result[i].full_name.includes("-")) {
+                text += "------------------\n"
+            } else {
+                console.log(result)
+                id += 1
+                text += `<b>${id}. ${result[i].full_name}</b>\n`
+                buttons.push(Markup.button.callback(id, `get_muxbir_to_lavha_${result[i].id}`))
+            }
+        }
+
+        ctx.replyWithHTML(text, Markup.inlineKeyboard(chunkArray(buttons)))
     } catch (err) {
         console.log(err)
         ctx.reply("Xatolik yuz berdi")
@@ -448,6 +484,7 @@ bot.action(/hisobot_by_(.+)/, async (ctx) => {
 
             const lavhalar = await Lavha.findAll({ where: { user_id: String(muxbirlar[i].id) }, raw: true })
             for (let i = 0; i < lavhalar.length; i++) {
+                if (!lavhalar[i].sana) continue
                 if (isSameMonthByName(lavhalar[i].sana, oy)) {
                     if (lavhalar[i].type_lavha == "tongi") {
                         tongi_efir_lavha += 1
@@ -527,7 +564,7 @@ Lavhalar: ${user.lavhaCount} ta
 bot.action("action_hudud", async (ctx) => {
     try {
         ctx.reply("Xududni tanlang 👇", regionsInlineKeyboardForHisobots)
-    } catch(err) {
+    } catch (err) {
         console.log(err)
         ctx.reply("Xatolik yuz berdi")
     }
@@ -540,10 +577,10 @@ bot.action(/hisobot_(.+)/, async (ctx) => {
         let muxbirlar = await Muxbir.findAll({ where: { hudud }, raw: true })
 
         if (hudud == "barchasi") muxbirlar = await Muxbir.findAll({
-                    where: {
-                        hudud: { [Op.ne]: "markaz" }
-                    },
-                });
+            where: {
+                hudud: { [Op.ne]: "markaz" }
+            },
+        });
 
         if (muxbirlar.length == 0) return ctx.reply("Xududda muxbirlar topilmadi")
 
