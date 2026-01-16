@@ -6,6 +6,8 @@ import { Muxbir } from "../models/muxbir.model.js"
 import { Lavha } from "../models/lavha.model.js";
 import { Op, where } from "sequelize";
 
+const admins = process.env.ADMINS.split(",")
+
 // ➕ Muxbir qo'shish
 // 🗑 Muxbir o'chirish
 // 📝 Lavha kiritish
@@ -153,12 +155,14 @@ function capitalize(text = "") {
 
 bot.command("admin", (ctx) => {
     try {
-        ctx.reply("Admin panel", Markup.inlineKeyboard([
-            [Markup.button.callback("➕ Muxbir qo'shish", "add_muxbir")],
-            [Markup.button.callback("🗑 Muxbir o'chirish", "delete_muxbir")],
-            [Markup.button.callback("📝 Lavha kiritish", "add_lavha")],
-            [Markup.button.callback("📊 Hisobotlar", "get_hisobots")],
-        ]))
+        if (admins.includes(ctx.from.username)) {
+            ctx.reply("Admin panel", Markup.inlineKeyboard([
+                [Markup.button.callback("➕ Muxbir qo'shish", "add_muxbir")],
+                [Markup.button.callback("🗑 Muxbir o'chirish", "delete_muxbir")],
+                [Markup.button.callback("📝 Lavha kiritish", "add_lavha")],
+                [Markup.button.callback("📊 Hisobotlar", "get_hisobots")],
+            ]))
+        }
     } catch (err) {
         console.log(err)
         ctx.reply("Xatolik yuz berdi")
