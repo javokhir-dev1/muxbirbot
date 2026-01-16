@@ -7,12 +7,78 @@ import { Markup } from "telegraf"
 import { Muxbir } from "./models/muxbir.model.js"
 import { Lavha } from "./models/lavha.model.js"
 import { Op } from "sequelize"
+import { MuxbirSorov } from "./models/muxbirsorov.model.js"
 
 // 🏆 Top Muxbir Markaz
 // 🔥 Markaz Top Lavha
 // 🏙 Top Muxbir Hudud
 // 🎉 Top Lavha Hudud
 // 📊 Shaxsiy natija
+
+
+// async function sendMessageToChannel(bot, channelUsername, text) {
+//     const channel = channelUsername.startsWith("@")
+//         ? channelUsername
+//         : `@${channelUsername}`;
+
+//     const message = await bot.telegram.sendMessage(channel, text, {
+//         parse_mode: "HTML"
+//     });
+
+//     return message.message_id;
+// }
+
+async function sendMessageToChannel(bot, channelUsername, text, buttons = []) {
+    const channel = channelUsername.startsWith("@")
+        ? channelUsername
+        : `@${channelUsername}`;
+
+    // Agar buttons array bo'sh bo'lmasa, inline keyboard yaratamiz
+    const replyMarkup = buttons.length
+        ? Markup.inlineKeyboard(
+            buttons.map(btn => Markup.button.callback(btn.title, btn.action)),
+            { columns: buttons.length } // 1 qatorda barcha tugmalar
+        )
+        : undefined;
+
+    const message = await bot.telegram.sendMessage(channel, text, {
+        parse_mode: "HTML",
+        reply_markup: replyMarkup.reply_markup
+    });
+
+    return message.message_id;
+}
+
+
+async function editChannelMessage(bot, channelUsername, messageId, newText) {
+    const channel = channelUsername.startsWith("@")
+        ? channelUsername
+        : `@${channelUsername}`;
+
+    await bot.telegram.editMessageText(
+        channel,
+        messageId,
+        null,
+        newText,
+        {
+            parse_mode: "HTML"
+        }
+    );
+
+    return true;
+}
+
+
+function formatSana(dateStr) {
+    const months = [
+        "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+        "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"
+    ];
+
+    const [day, month, year] = dateStr.split("-");
+
+    return `${year}-yil ${day}-${months[Number(month) - 1]}`;
+}
 
 
 bot.start((ctx) => {
@@ -27,7 +93,7 @@ Bu bot orqali:
             Markup.keyboard([
                 ["🏆 Top Muxbir Markaz", "🔥 Markaz Top Lavha"],
                 ["🏙 Top Muxbir Hudud", "🎉 Top Lavha Hudud"],
-                ["📊 Shaxsiy natija", "Lavha kesish"],
+                ["📊 Shaxsiy natija", "✂️ Lavha kesish"],
             ]).resize())
     } catch (err) {
         console.log(err)
@@ -240,7 +306,7 @@ bot.action(/gethisobotby_(.+)/, async (ctx) => {
     }
 })
 
-bot.hears("Lavha kesish", async (ctx) => {
+bot.hears("✂️ Lavha kesish", async (ctx) => {
     try {
         ctx.reply("Oyni tanlang 👇", Markup.inlineKeyboard([
             [Markup.button.callback("yanvar", "lavha_kesish_by_yanvar"), Markup.button.callback("fevral", "lavha_kesish_by_fevral")],
@@ -256,8 +322,6 @@ bot.hears("Lavha kesish", async (ctx) => {
     }
 })
 
-
-
 bot.action(/lavha_kesish_by_(.+)/, async (ctx) => {
     try {
         const oy = ctx.match[1]
@@ -270,19 +334,56 @@ bot.action(/lavha_kesish_by_(.+)/, async (ctx) => {
         if (!muxbir) {
             return ctx.reply("Siz bazada mavjud emassiz!")
         }
-        let text = "<b>Sanani tanlang 👇\n\n</b>"
+        let text = "<b>Lavha Sanasini tanlang 👇\n\n</b>"
         const buttons = []
-        const lavhalar = await Lavha.findAll({ where: { user_id: String(muxbir.id)} })
+        const lavhalar = await Lavha.findAll({ where: { user_id: String(muxbir.id) } })
         if (!lavhalar) {
             return ctx.reply("Lavhalar mavjud emas")
         }
+
+        let id = 0
         for (let i = 0; i < lavhalar.length; i++) {
             if (isSameMonthByName(lavhalar[i].sana, oy)) {
-                text += `<b>${i + 1}. ${lavhalar[i].sana}</b>\n`
-                buttons.push(Markup.button.callback(i+1, `lavhani_olish_${lavhalar[i].id}`))
+                id += 1
+                text += `<b>${id}. ${lavhalar[i].sana} (${formatSana(lavhalar[i].sana)})</b>\n`
+                buttons.push(Markup.button.callback(id, `lavhani_olish_${lavhalar[i].id}_${muxbir.id}`))
             }
         }
         await ctx.replyWithHTML(text, Markup.inlineKeyboard(chunkArray(buttons)))
+    } catch (err) {
+        console.log(err)
+        ctx.reply("Xatolik yuz berdi")
+    }
+})
+
+bot.action(/lavhani_olish_(.+)_(.+)/, async (ctx) => {
+    try {
+        const lavha_id = ctx.match[1]
+        const muxbir_id = ctx.match[2]
+        console.log(muxbir_id)
+        const muxbir = await Muxbir.findOne({ where: { id: muxbir_id } })
+        console.log(muxbir)
+        if (!muxbir) return ctx.reply("Siz bazada mavjud emassiz")
+
+        const lavha = await Lavha.findOne({ where: { id: lavha_id } })
+        if (!lavha) return ctx.reply("Negadur lavha topilmadi")
+        const muxbirsorov = await MuxbirSorov.create({ muxbir_id, lavha_id, message_id: null, status: "waiting" })
+        const message_id = await sendMessageToChannel(
+            bot,
+            "testchannellavha",
+            `
+<b>🧑‍💼 Muxbir:</b> <b>${muxbir.full_name}</b>
+<b>📱 Telegram:</b> ${muxbir.telegram}
+
+<b>📅 Lavha Sanasi:</b> ${formatSana(lavha.sana)}
+
+✂️ Ushbu sana bo'yicha lavhani kesib olish uchun so'rov yuborildi.
+`, [{ title: "Tasdiqlash ✅", action: `tasdiqlash_${muxbirsorov.id}` }, { title: "Rad qilish ❌", action: `radqilish_${muxbirsorov.id}` }]
+        )
+
+        await muxbirsorov.update({ message_id })
+
+        ctx.reply("So'rov yuborildi ✅, Admin javobini kuting!")
 
     } catch (err) {
         console.log(err)
@@ -290,10 +391,62 @@ bot.action(/lavha_kesish_by_(.+)/, async (ctx) => {
     }
 })
 
-bot.action(/lavhani_olish_(.+)/, async (ctx) => {
+bot.action(/tasdiqlash_(.+)/, async (ctx) => {
     try {
-        
-    } catch(err) {
+        const muxbirsorov_id = ctx.match[1]
+        const muxbirsorov = await MuxbirSorov.findOne({ where: { id: muxbirsorov_id } })
+
+        if (!muxbirsorov) return ctx.reply("Xatolik yuz berdi, qayta urinib ko'ring")
+
+        const muxbir = await Muxbir.findOne({ where: { id: muxbirsorov.muxbir_id }, raw: true })
+        const lavha = await Lavha.findOne({ where: { id: muxbirsorov.lavha_id }, raw: true })
+        const message_id = muxbirsorov.message_id
+
+        await bot.telegram.sendMessage(muxbir.telegram, `Lavha kesish bo'yicha so'rov Tasdiqlandi ✅`)
+        editChannelMessage(bot, "testchannellavha", message_id,
+            `
+<b>🧑‍💼 Muxbir:</b> <b>${muxbir.full_name}</b>
+<b>📱 Telegram:</b> ${muxbir.telegram}
+
+<b>📅 Lavha Sanasi:</b> ${formatSana(lavha.sana)}
+
+Tasdiqlandi ✅
+`)
+        await muxbirsorov.update({ status: "approved" })
+
+    } catch (err) {
         console.log(err)
+        ctx.reply("Xatolik yuz berdi")
+    }
+})
+
+bot.action(/radqilish_(.+)/, async (ctx) => {
+    try {
+        const muxbirsorov_id = ctx.match[1]
+        const muxbirsorov = await MuxbirSorov.findOne({ where: { id: muxbirsorov_id } })
+
+        if (!muxbirsorov) return ctx.reply("Xatolik yuz berdi, qayta urinib ko'ring")
+
+        const muxbir = await Muxbir.findOne({ where: { id: muxbirsorov.muxbir_id }, raw: true })
+        const lavha = await Lavha.findOne({ where: { id: muxbirsorov.lavha_id }, raw: true })
+        const message_id = muxbirsorov.message_id
+
+        await bot.telegram.sendMessage(muxbir.telegram, `Lavha kesish bo'yicha so'rov Rad etildi❌
+
+Ma'muriyatga murojaat qiling!`)
+        editChannelMessage(bot, "testchannellavha", message_id,
+            `
+<b>🧑‍💼 Muxbir:</b> <b>${muxbir.full_name}</b>
+<b>📱 Telegram:</b> ${muxbir.telegram}
+
+<b>📅 Lavha Sanasi:</b> ${formatSana(lavha.sana)}
+
+Rad etildi ❌
+`)
+        await muxbirsorov.update({ status: "notapproved" })
+
+    } catch (err) {
+        console.log(err)
+        ctx.reply("Xatolik yuz berdi")
     }
 })
